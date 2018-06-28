@@ -91,6 +91,37 @@ inappropriate, or at least strange.
 
 
 
+<para>
+We can define methods for any R function or operator.
+For example, we can provide methods for <r:func>plot</r:func>, <r:func>summary</r:func>,
+and for <r:func>+</r:func>, <r:func>[</r:func>, <r:func>$</r:func>, <r:func>[[</r:func> and so on.
+This allows us to use the same verb regardless of the representation.
+</para>
+
+
+<para>
+Inheritance in OOP allows us to reuse methods.
+For instance, we have glm models that extend lm models.
+The method for <r:func>coef</r:func> for <r:class>lm</r:class> works fine for <r:class>glm</r:class> objects also
+so we don't have to write a method for both <r:class>lm</r:class> and <r:class>glm </r:class> classes. Instead,
+we inherit the method for <r:class>lm</r:class> because <r:class>glm</r:class> is defined as a subclass of
+<r:class>lm</r:class>.
+</para>
+<para>
+  For a <r:class>glm</r:class>, we  may want the <r:func>plot</r:func> method
+  to do something similar to <r:class>lm</r:class>'s <r:func>plot</r:func> method,
+  but slightly different.
+  Again, we could copy all the code from <r:class>lm</r:class>'s method and then adapt it.
+  However, if that code changes, we'll have to integrate those changes.
+  Instead, we might be able to have <r:class>glm</r:class>'s <r:func>plot</r:func> method
+  act as 1) do what you do for <r:class>lm</r:class>, 2) add an extra element to the plot(s).
+  Or alternatively, we may want to a) modify the <r:class>glm</r:class> object first, and then b) pass it to
+  <r:class>lm</r:class>'s method to achieve the result we want.
+  Inheritance allows us this as one method can invoke the method of its parent class, thus reusing the same
+  code, even as it changes over time.
+</para>
+
+
 
 
 </article>
