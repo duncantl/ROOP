@@ -25,6 +25,30 @@
 </para>
 
 
+<para>
+The motivation to write this arose when considering Nick Ulle's rstatic package.
+This represent <r/> language objects (e.g., expression, call, name, for, if, while, ...)
+in a different way to facilitate code analysis.
+So we have two representation which we can call rlang and rstatic.
+We decided that it should be
+easy to use code written for one representation to also process objects from the other representation
+without changing the code. To do this, we use generic functions and methods to hide the difference.
+The rlang representation is quite straightforward, mostly treating the objects as lists.
+So Nick added methods for <r:op>[[</r:op> to access the elements of, for example, an if statement via
+<r:expr>e[[2]]</r:expr>, <r:expr>e[[3]]</r:expr> and so on.
+We also wanted to coerce from one representation to another, e.g.,
+make a call in the rlang representation into a Call in the rstatic representation and vice versa.
+While the functions <r:func>to_ast</r:func> and <r:func>to_r</r:func> do this, we
+define <r:func>as</r:func> methods for these so that one can go from one class to the other explicitly
+and assert that you have an object of the appropriate class.
+The last step is that we want to be able to ensure in some functions that we had an object of the
+appropriate class, e.g. an expression or { object rather than a call, etc.
+We want to be able say we have either a call or a Call, or in other cases, an if or an If.
+We can test for both classes, but there is a slightly better way to do this with <r:func>setIs</r:func>.
+</para>
+
+
+
 <section>
 <title></title>
 
