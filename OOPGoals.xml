@@ -1,0 +1,96 @@
+<article
+	 xmlns:r="http://www.r-project.org"
+	 xmlns:c="http://www.C.org"
+	 xmlns:omg="http://www.omegahat.org">
+
+<info>
+    <author>
+     <personname>
+       <firstname>Duncan</firstname>
+          <surname>Temple Lang</surname>
+        </personname>
+        <affiliation>
+          <orgname>UC Davis</orgname>
+         <orgdiv>Data Science Initiative</orgdiv>
+        </affiliation>
+   </author>
+</info>
+
+<title>Goals of Object Oriented Programming</title>
+
+<para>
+OOP involves being  more intentional about developing software, in contrast to interactive commands
+and scripting. It is one step beyond writing functions, both literally and conceptually.
+We are describing structures of related objects, how we act on them, how they are related.
+</para>
+
+<para>
+The key goals of OOP are to make code more flexible, adaptible and reusable
+but without having to change the code itself.
+
+<ol>
+<li> Allow extensions to change the way an existing function works without changing the code of that function, via
+     generics and methods.</li>
+     <li> Provide uniform interfaces to different functionality via generics and methods</li>
+<li> Formal definitions of representation of objects of a class and constraints on the contents to ensure an object is valid</li>
+</ol>  
+</para>
+
+
+
+<para>
+  In S4, we tend to use direct inheritance.
+  I write many coercion/as methods to convert from one class to another (across the classes not up and down the
+  inheritance hierarchy).
+</para>
+
+
+
+<para>
+  When we see
+<r:function><![CDATA[
+foo = function(x, ...)
+{
+    if(is(x, 'A'))
+      ...
+    else if(is(x, 'B'))
+      ...
+    else if(is(x, 'C'))
+      ...    
+}
+]]></r:function>
+then we should be thinking classes and methods.
+
+<r:code>
+setGeneric("foo", function(x, ...) standardGeneric("foo"))
+</r:code>
+<r:code>
+setMethod("foo", "A", function(x, ...) { # code for A })
+setMethod("foo", "B", function(x, ...) { # code for B })
+setMethod("foo", "C", function(x, ...) { # code for C })
+</r:code>
+The code for these three cases are now  separate, easier to read and easier to reuse and adapt.
+</para>
+<para>
+If we wanted to extend the original function   <r:func>foo</r:func> to support a class D,
+we'd have to add an <r:expr eval="false">else if(is(x, "D"))</r:expr> clause.
+If we do this, we have to retest all of our code as this could break something.
+If we don't own the function <r:func>foo</r:func>, we'd have to either 1) make a copy
+of it and now maintain it ourselves and integrate changes from the original foo as it
+evolves, or 2) petition the owner to add code for class D.  In 2),
+foo's original package may not even have a definition for D, so adding code for it would be
+inappropriate, or at least strange.
+</para>
+
+<para>
+  Using methods, however, removes the need for 1) and 2) above.
+  We clearly don't have to change the original <r:func>foo</r:func> if it is a generic function, so that solves 1).
+  Addressing 2), any user can define a method for <r:func>foo</r:func> in any package.
+  The original author of <r:func>foo</r:func> or the classes A, B, and D do not have to be involved.
+</para>
+
+
+
+
+
+</article>
