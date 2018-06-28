@@ -1,0 +1,301 @@
+<article
+	 xmlns:r="http://www.r-project.org"
+	 xmlns:c="http://www.C.org"
+	 xmlns:omg="http://www.omegahat.org">
+
+<info>
+    <author>
+     <personname>
+       <firstname>Duncan</firstname>
+          <surname>Temple Lang</surname>
+        </personname>
+        <affiliation>
+          <orgname>UC Davis</orgname>
+         <orgdiv>Data Science Initiative</orgdiv>
+        </affiliation>
+   </author>
+</info>
+
+<title>The S4 setIs() mechanism</title>
+
+
+<para>
+  This is a simple illustration motivating the use of  the
+  <r:func>setIs</r:func> mechanism in R's S4 OOP system.
+</para>
+
+
+<section>
+<title></title>
+
+<para>
+  The example is intentionally simple and somewhat contrived.
+  For some reason, we want to have a sorted vector of integers.
+  We can then compute the range very simply.
+  We also want to represent sequences of integers by their
+  start, end and stride without actually representing the complete sequence.
+  This is useful for working on large sequences without incurring the overhead of the memory
+  to store all of the values. Instead, we can compute any value as it is needed.
+</para>
+
+
+<para>
+We define two S4 classes. (These could be old classes, including a reference or R6 class. (Verify))
+The first - sortedInt - extends the core class integer.
+<r:code>
+setClass("sortedInt", contains = "integer")
+</r:code>
+An object of class <r:class>sortedInt</r:class> is an integer by inheritance, but it will have
+the extra property that the elements are stored in a sorted way.
+We start by creating a constructor function for <r:class>sortedInt</r:class>.
+We might define this as
+<r:code>
+sortedInt = function(x) new("sortedInt", sort(x))  
+</r:code>
+If <r:func>sort</r:func> or S4 discarded the names, we would have to handle these explicitly.
+
+<ignore>
+  Do we need to handle the names more explicitly, or if sortedInt is given non-integer values and coerces?
+<r:code eval="false">
+sortedInt = function(x) { o = order(x) ; new("sortedInt", structure(as.integer(x[o]), names = names(x)[o])) }
+</r:code>
+</ignore>
+
+So we can create instances of sortedInt with, e.g,
+<r:code>
+a = sortedInt(c(1, 0, 5))  
+b = sortedInt(c(a = 1, b = 0, c = 5))
+</r:code>
+We can verify that these are of class sortedInt and have <r:func>typeof</r:func> of "integer".
+</para>
+
+
+<para>
+  Next we'll define our sequence class <r:class>iSeq</r:class>.
+  This consists of the start and end values and the stride (or <r:slot>by</r:slot>) value
+  giving the interval between successive elements. We define this with
+<r:code>
+setClass("iSeq", list(start = "integer", end = "integer", by = "integer"))
+</r:code>
+
+We can create instances of this with
+<r:code>
+s1 = new("iSeq", start = 20L, end = 50L, by = 10L)
+</r:code>
+We can provide a more convenient constructor function
+<r:code>
+iSeq = function(start, end, by = 1)
+             new("iSeq", start = as.integer(start), end = as.integer(end), by = as.integer(by))
+</r:code>
+Now we can create instances with
+<r:code>
+s2 = iSeq(20, 100, 5)
+</r:code>
+</para>
+
+<para>
+  To make iSeq useful, we  define important methods
+  for <r:func>length</r:func> and element-wise subsetting.
+  We do the first in a basic manner with
+<r:code>
+setMethod("length", "iSeq", function(x) (x@end - x@start)/x@by + 1)
+</r:code>
+<fix>Note that this doesn't handle all the cases we need to, however this is not the focus in this short illustration.</fix>
+
+</para>
+<para>
+To extract a single element (not vectors of subelements)
+we define the [ operator for iSeq with
+<r:code>
+setMethod("[", "iSeq", "numeric", function(x, i, j, ...) {
+                          if(i > length(x))
+                              NA
+                          else
+                              x@start + (i-1)*x@by
+    })
+</r:code>
+Again, a complete implementation would handle accessing more than one element, i.e. vectorized subsetting.
+</para>
+<para>
+ With these two methods defined, we can manipulate instances of <r:class>iSeq</r:class>:
+<r:code>
+  length(s2) # 17
+  s2[1]
+  s2[3]
+  s2[length(s2)]
+</r:code>
+</para>
+
+
+<para>
+We now write a function <r:func>srange</r:func> to compute the range of
+a sortedInt or an iSeq.
+This is relatively easy. Because of the way our objects are represented for the two
+classes, we can compute <r:expr eval="false">x[length(x)] - x[1]</r:expr>.
+(We do have to handle the case of empty integers, but again this is not the focus here.)
+We can write our function as
+<r:function><![CDATA[
+irange =
+function(x)
+{
+     x[length(x)] - x[1]
+}
+]]></r:function>
+However, we want to make this specific to sortedInt and iSeq objects.
+We could define a generic irange function and then define identical methods
+for each of sortedInt and iSeq  using this function, e.g.
+<r:code>
+irange.tmp = irange
+setGeneric("irange", function(x, ...) standardGeneric("irange"))
+setMethod("irange", "sortedInt", irange.tmp)
+setMethod("irange", "iSeq", irange.tmp)
+</r:code>
+Calling irange on an object that is not an instance of one  of these two classes will fail
+as there is no default method. And the methods will do the correct thing for either class.
+Developers can inherit these methods when they define a new class that extends either
+<r:class>sortedInt</r:class> or <r:class>iSeq</r:class>.
+</para>
+<para>
+An alternative approach to define a generic and methods is to define
+irange as a regular <r/> function
+but make it specific to <r:class>sortedInt</r:class>
+and <r:class>iSeq</r:class> or their subclasses.
+Specifically, we can check if we <r:arg>x</r:arg>, our parameter,
+is an instance of either of these two classes. If not,
+we can coerce it to one of them, or raise an error.
+We could write this as
+<r:function><![CDATA[
+irange =
+function(x)
+{
+    if(!is(x, "sortedInt") && !is(x, "iSeq"))
+       x = as(x, "sortedInt")
+
+    x[length(x)] - x[1]
+}
+]]></r:function>
+This is fine.
+The key here is that once we know we have a sortedInt or an iSeq object,
+we can use generic functions (specifically <r:op>[</r:op>) that we know
+are defined for these classes. This is what makes this work. We are not
+using any knowledge of the representation/structure of the object, but
+treating it as an opaque data object and using methods to access the content and functionality we
+want. 
+</para>
+
+<para>
+A more extensible way to test whether our input <r:arg>x</r:arg> is appropriate is to ask whether
+<r:arg>x</r:arg> is compatible with either.
+To put this another way, both of these classes have the property that
+their elements are sorted.
+We might define a virtual class named, e.g., SortedElements,
+and use this as a base class when defining sortedInt and iSeq.
+In this situation, our <r:func>irange</r:func> function
+would check if <r:arg>x</r:arg> was an instance of SortedElements,
+i.e., <r:class>is(x, "SortedElement")</r:class>.
+This would be true for an iSeq or a sortedInt object.
+</para>
+<para>
+The virtual base class mechanism is a useful approach to structuring
+the inheritance for this approach. It does not provide any slots
+and there is no necessary structural relationship between the subclasses.
+The drawback of this approach is when we do not get to define the
+two classes. Suppose we were inheriting from integer directly,
+or from a class in another package written by a different author.
+We cannot modify those class definitions.
+This is where <r:func>setIs</r:func> plays a role.
+First, let's define a function that converts an <r:class>iSeq</r:class> object
+to an integer vector
+<r:function><![CDATA[
+toInt = function(from) sapply(seq(1, length(from)), function(i) from[i])
+]]></r:function>
+This will be sorted.
+</para>
+<para>
+Now we can assert that any <r:class>iSeq</r:class>
+is a <r:class>sortedInt</r:class> with
+<r:code>
+
+ setIs("iSeq", "sortedInt", coerce = toInt)
+</r:code>
+We provide <r:func>toInt</r:func> as the value for the <r:arg>coerce</r:arg>  parameter.
+The call to <r:func>setIs</r:func> will still issue a warning
+<r:warning><![CDATA[
+  there is no automatic definition for 'as(object, "sortedInt") <- value' when object has class “iSeq” and no 'replace' argument was supplied; replacement will be an error
+]]></r:warning>
+We'll ignore this.
+Importantly, this tells <R/> (specifically S4) that there is a relationship between the two classes
+even though they have no relationship via inheritance.
+</para>
+<para>
+Now we can write our <r:func>irange</r:func> function as
+<r:function><![CDATA[
+irange =
+function(x)
+{
+    if(!is(x, "sortedInt")) {
+        warning("expecting an object compatible with sortedInt, coercing to sortedInt")
+        x = as(x, "sortedInt")
+    }
+
+     x[length(x)] - x[1]
+}
+]]></r:function>
+We add the message here so that we can   see that the code is explicitly
+coercing an object when it is not a sortedInt.
+</para>
+
+
+<para>
+In this new version of <r:func>irange</r:func>, we have changed
+<r:code>
+  if(!is(x, "sortedInt") || !is(x, "iSeq"))
+</r:code>
+to
+<r:code>
+  if(!is(x, "sortedInt"))
+</r:code>
+Importantly, this would apply in other functions, so we are potentially
+avoiding repeating this test in multiple places.
+This is because we have declared a global equivalence between the two classes for all contexts.
+</para>
+<para>
+Importantly, if another developer wants to assert an equivalence between a new class she defines
+and sortedInt, <r:func>irange</r:func> will accommodate that without any change needing to be made.
+Concretely, if we define a new class <r:class>X</r:class> and proclaim it is a sortedInt with
+<r:code>
+setIs("X", "sortedInt", coerce = function(from) {})
+</r:code>
+then we can pass objects of class X (or derived classes) to <r:func>irange</r:func>.
+</para>
+
+
+<para>
+<r:func>setIs</r:func> has similarities to interfaces in Java.
+An interface in Java is a declaration/contract that a "class" implements
+particular methods and the code can rely on those being present.
+For <r:func>setIs</r:func>, we are saying that you can treat an object as if it were
+an instance of another class even though the representation is quite different.
+This is because there are methods for the generic functions you will use.
+</para>
+
+<para>
+  <r:func>setIs</r:func> defines relationships between classes without an explicit inheritance.
+  It allows us to test an object is of a compatible class for our computations.
+  This works if we don't use the representation of the object, but use generics and their methods.
+  <r:func>setIs</r:func> enhances extensibility  without changing existing code.
+</para>
+
+<para>
+One can use <r:func>setClassUnion</r:func> to say that an object must be one of several different types and
+this is similar in spirit to <r:func>setIs</r:func>. But they are slightly different.
+</para>
+
+</section>
+</article>
+
+
+
+
+
+
